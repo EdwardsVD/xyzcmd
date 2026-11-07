@@ -45,3 +45,24 @@ LOD `_lod1` untuk jarak > 120 m, streaming per chunk 400 m, batas ~6000 instance
 ## D6 — Kontrol
 NativeActivity + input sentuh langsung (multi-touch), tombol analog di kiri/kanan bawah
 digambar dengan shader 2D, 44 dp minimum, semi-transparan.
+
+## D7 — Teks "burem" bukan sekadar resolusi
+Diagnosis: (a) paket aset sudah 1024 px tetapi loader masih memaksa 512 px,
+(b) mipmap sampai 1×1 px membuat aspal/beton miring jadi kabur, (c) tidak ada
+anisotropic filtering, (d) JPEG 4:2:0 menghapus detail warna tepi. Keempatnya
+diperbaiki. Menaikkan resolusi sumber (512 px asli) tidak menambah detail nyata.
+
+## D8 — Trotoar tanpa Blender
+Blender tidak bisa diunduh (D1). Trotoar dibuat prosedural: permukaan datar +
+kerb vertikal 0,18 m, dipisah jadi GLB sendiri agar 1 draw call. Lebar disimpan
+di `roads.json` (`trotoar`) supaya fisika/tata letak tahu batas jalan.
+
+## D9 — Urutan pipeline aset
+`build_world` (ratakan terrain) → `build_roads` (jalan mengikuti terrain final)
+→ `build_world` (sebar objek di terrain final) → `fix_scene` → `pack_assets`.
+Sebelumnya jalan dibuat sebelum perataan sehingga 17% verteksnya tenggelam.
+`build_world.py` memakai `reseed()` per tahap agar dua kali jalan hasilnya sama.
+
+## D10 — Kompatibilitas Android 15
+`extractNativeLibs=false` + `.so` tidak dikompresi dan data-nya selaras 16 KB;
+tanpa ini Android 15/16 (targetSdk 34 ke atas pada perangkat 16 KB) menolak pasang.
