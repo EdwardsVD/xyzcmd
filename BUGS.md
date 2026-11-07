@@ -78,3 +78,26 @@ Versi lama tidak bisa ditimpa. Sekarang `versionCode 3` / `versionName 1.0.3`.
 
 ## B9 — Salah ABI pada `badging` — SELESAI
 `tools/apkbuild.py badging` selalu mencetak `arm64-v8a`. Sekarang membaca isi zip.
+
+## B10 — Pemakaian pointer i32 pada offset tidak ter-align (world.cpp) — SELESAI
+**Gejala:** ASan melaporkan `load of misaligned address ... for type 'const i32'`
+saat memuat `props.bin`; pada HP ARM Android ini bisa menyebabkan `SIGBUS`/crash
+padahal di x86 host masih terlihat berjalan.
+**Penyebab:** `Props::load` men-cast `data + 16 + count*22` langsung ke
+`const i32*`. Offset itu hanya 4-byte ter-align jika `count` genap; saat jumlah
+prop ganjil, pointer tidak ter-align.
+**Perbaikan:** baca masing-masing `i32` lewat `memcpy` ke variabel lokal
+(portabel, tidak mengandalkan alignment), tanpa mengubah format berkas
+`props.bin`. Diverifikasi dengan `game_sim`/`gameplay_test` (ASan+UBSan, 400+
+frame, tanpa crash).
+**Bukti:** props.bin punya 162.447 instance / 659 chunk; load lolos ASAN bersih.
+
+## Catatan debug gameplay (tidak ditemukan bug baru)
+- `gameTouchCancelAll()` sudah mereset semua tombol (gas/rem) saat pause/batal,
+  tidak ada tombol yang "nyangkut" dan memaksa mobil terus beregas.
+- Fisika raycast 4 roda (`car.cpp`): `muEff` clamp 1.9, traksi belakang,
+  anti-tembus `minY = ground + tinggiGantung - 0.30`, status laut
+  `y < airY - 0.5` — tidak ada penurunan/kecepatan aneh dalam simulasi host.
+- `platform.cpp`: `dt` clamp 0.1, konteks GL dibuat ulang per jendela,
+  `surfaceDirty` diproses pada render thread — area tetap layak dipantau saat
+  pause/resume, tapi belum ada crash terkonfirmasi.

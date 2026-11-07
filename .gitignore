@@ -3,6 +3,7 @@ assets/
 google_drive/
 sysroot/
 output/*.apk
+output/*.zip
 output/apk/
 keystore/
 build/

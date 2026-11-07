@@ -206,13 +206,15 @@ bool Props::load(const u8* data, size_t len) {
         items[i].scale = f[i * 5 + 4];
         items[i].type = ty[i];
     }
-    const i32* ci = (const i32*)(data + 16 + (size_t)count * 22);
-    const i32* st = ci + chunkCount;
-    const i32* ct = st + chunkCount;
+    // catatan: data + 16 + count*22 tidak selalu 4-byte ter-align
+    // (saat count ganjil), jadi baca lewat memcpy agar portabel (ARM mengharuskan
+    // pemakaian i32* ter-align, tidak boleh cast langsung dari offset aneh).
+    const u8* base = data + 16 + (size_t)count * 22;
     for (int i = 0; i < chunkCount; i++) {
-        chunkId[i] = ci[i];
-        chunkStart[i] = st[i];
-        chunkCountArr[i] = ct[i];
+        i32 v;
+        memcpy(&v, base + (size_t)i * 4, 4);               chunkId[i] = v;
+        memcpy(&v, base + (size_t)(chunkCount + i) * 4, 4); chunkStart[i] = v;
+        memcpy(&v, base + (size_t)(2 * chunkCount + i) * 4, 4); chunkCountArr[i] = v;
     }
     // grid cepat 200 m -> rentang chunk
     cellN = 400;

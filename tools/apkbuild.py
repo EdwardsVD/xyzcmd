@@ -65,6 +65,15 @@ class AXML:
 
 
 def _pool(strings, utf8=False):
+    """RES_STRING_POOL_TYPE.
+
+    Tata letak: header(28) | offsets[count] | string data | padding.
+    BUG yang diperbaiki: versi sebelumnya menulis offsets dan data pada buffer
+    terpisah tetapi `stringsStart` (28) tidak memperhitungkan tabel offsets,
+    sehingga parser Android membaca tabel offset sebagai isi string. Akibatnya
+    nama tag/atribut jadi sampah -> PackageParser melempar error dan HP
+    menampilkan "ada masalah saat mengurai paket".
+    """
     data = bytearray()
     offsets = []
     for s in strings:
@@ -83,10 +92,11 @@ def _pool(strings, utf8=False):
     while len(data) % 4:
         data += b"\x00"
     hdr_size = 28
-    body = b"".join(struct.pack("<I", o) for o in offsets) + bytes(data)
-    size = hdr_size + len(body)
+    table = b"".join(struct.pack("<I", o) for o in offsets)
+    strings_start = hdr_size + len(table)
+    size = strings_start + len(data)
     return struct.pack("<HHIIIIII", 0x0001, hdr_size, size, len(strings), 0,
-                       0x100 if utf8 else 0, hdr_size + 4 * len(strings), 0) + body
+                       0x100 if utf8 else 0, strings_start, 0) + table + bytes(data)
 
 
 def build_axml(root):
@@ -145,8 +155,11 @@ def build_axml(root):
         body.extend(start + ext)
         for c in e["children"]:
             emit_element(c)
-        body.extend(struct.pack("<HHIII", 0x0103, 0x0010, 0x0014, 1, 0xFFFFFFFF))
-        body.extend(struct.pack("<I", ax._smap[e["name"]]))
+        # END_ELEMENT: header(16) + ns(4) + name(4) = 24 byte.
+        # Versi lama hanya menulis `name` tanpa `ns` -> parser Android kehilangan
+        # sinkronisasi dan menampilkan "ada masalah saat mengurai paket".
+        body.extend(struct.pack("<HHIII", 0x0103, 0x0010, 0x0018, 1, 0xFFFFFFFF))
+        body.extend(struct.pack("<II", 0xFFFFFFFF, ax._smap[e["name"]]))
 
     # namespace start
     body.extend(struct.pack("<HHIII", 0x0100, 0x10, 0x18, 1, 0xFFFFFFFF))
@@ -241,19 +254,21 @@ class ZipWriter:
                 if pad < 4:
                     pad += align
                 extra = struct.pack("<HH", 0xD935, pad - 4) + b"\x00" * (pad - 4)
-        self.buf += struct.pack("<IHHHHHIIIHH", 0x04034B50, 20, 0x0800, method, 0, 0x0021,
+        # time/date zip dibuat tetap (0x0021/0x0000) supaya build bisa direproduksi
+        self.buf += struct.pack("<IHHHHHIIIHH", 0x04034B50, 20, 0x0800, method, 0x0021, 0x0000,
                                 crc, len(payload), len(data), len(name_b), len(extra))
         self.buf += name_b + extra + payload
         self.entries.append(dict(name=name_b, method=method, crc=crc, csize=len(payload),
-                                 usize=len(data), off=off, flags=0x0800))
+                                 usize=len(data), off=off, flags=0x0800,
+                                 time=0x0021, date=0x0000, extra=extra))
         return len(payload)
 
     def finish(self):
         cd_off = len(self.buf)
         for e in self.entries:
             self.buf += struct.pack("<IHHHHHHIIIHHHHHII", 0x02014B50, 20, 20, e["flags"],
-                                    e["method"], 0, 0x0021, e["crc"], e["csize"], e["usize"],
-                                    len(e["name"]), 0, 0, 0, 0, 0, e["off"])
+                                    e["method"], e["time"], e["date"], e["crc"], e["csize"],
+                                    e["usize"], len(e["name"]), 0, 0, 0, 0, 0, e["off"])
             self.buf += e["name"]
         cd_size = len(self.buf) - cd_off
         self.buf += struct.pack("<IHHHHIIH", 0x06054B50, 0, 0, len(self.entries), len(self.entries),

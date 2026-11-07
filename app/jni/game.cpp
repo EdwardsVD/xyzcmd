@@ -7,6 +7,12 @@
 #include "car.h"
 #include "gltf.h"
 
+#ifndef __ANDROID__
+// hanya dibutuhkan untuk kompilasi host (g++) agar snprintf terdeklarasi;
+// pada target Android (__ANDROID__) deklarasi sudah ada lewat header NDK transitif.
+#include <cstdio>
+#endif
+
 #include <android/asset_manager.h>
 #include <android/native_activity.h>
 

@@ -11,6 +11,8 @@ set -e
 cd "$(dirname "$0")"
 ROOT=$(pwd)
 SESI=${SESI:-3}
+VNAME=${VNAME:-0.0.1_3}      # versionName di dalam manifest
+VCODE=${VCODE:-3}            # versionCode (harus >= yang terpasang agar bisa update)
 ZIG=${ZIG:-$ROOT/.venv/lib/python3.11/site-packages/ziglang/zig}
 PY=${PY:-$ROOT/.venv/bin/python}
 OUT=output
@@ -125,7 +127,7 @@ APK=$OUT/nusa-rush-s${SESI}-debug.apk
 LIBARG="--lib $BUILD/lib$LIB.so"
 [ -f $BUILD/lib$LIB-arm.so ] && LIBARG="$LIBARG --lib32 $BUILD/lib$LIB-arm.so"
 $PY tools/apkbuild.py build --out "$APK" $LIBARG --assets app/assets \
-  --version-name "1.0.3" --version-code 3 --min-sdk 24 --target-sdk 34
+  --version-name "$VNAME" --version-code "$VCODE" --min-sdk 24 --target-sdk 34
 $PY tools/apkbuild.py badging "$APK" 2>/dev/null | tail -6
 echo
 echo "SELESAI: $APK"
