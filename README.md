@@ -18,8 +18,8 @@ build_apk.sh    build satu perintah: aset -> C++ -> .so -> APK bertanda tangan
 | Item | Nilai |
 |---|---|
 | Package | `com.arenalab.nusarush` (NativeActivity, minSdk 24, targetSdk 34) |
-| ABI | `arm64-v8a` saja (`libnusa.so`, 2,0 MB) |
-| APK | `output/nusa-rush-s3-debug.apk` — 21 MB, 67 aset, tanda tangan v2 |
+| ABI | `arm64-v8a` + `armeabi-v7a` (HP 32-bit & 64-bit) |
+| APK | `output/nusa-rush-s3-debug.apk` — 22,8 MB, 67 aset, tanda tangan v2, versionCode 3 |
 | Dunia | pulau 9,6 km × 9,4 km, tinggi −35…240 m, 7 biome |
 | Jalan | desa 14,6 km, kota 27,0 km, tanah 6,2 km (total 47,8 km) |
 | Objek | 162.447 instance (pohon, rumah desa, gedung kota) dalam 659 chunk |
@@ -71,6 +71,12 @@ Folder **game SESI-3**:
 - `nusa-rush-s3.apk` — APK siap pasang
 - `nusa-rush-s3-source.zip` — seluruh kode & tools
 - `nusa-rush-s3-assets.zip` — `assets/generated` + `app/assets`
+
+## Kalau gagal install
+
+Lihat `BUGS.md` B1–B2 (dua bug fatal yang sudah diperbaiki: digest v2 dan ABI
+32-bit). Sebelum memasang versi baru, **cabut dulu** aplikasi lama karena
+tanda tangannya berganti. Rencana pengembangan berikutnya ada di `update.md`.
 
 ## Isi penting
 

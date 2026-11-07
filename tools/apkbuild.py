@@ -270,6 +270,9 @@ def _lp(b):
 V2_ID = struct.pack("<I", 0x7109871A)   # id blok tanda tangan v2
 
 
+_CHUNK = 1024 * 1024      # ukuran potongan digest skema v2 (apksig)
+
+
 def _sig_algo_for(key_size):
     return 0x0103  # RSASSA-PKCS1-v1_5 with SHA-256
 
@@ -323,11 +326,26 @@ def sign_v2(apk_bytes, key_path, cert_path, extra_certs=()):
     # 2) digest: isi | central dir | EOCD dengan field offset = awal blok
     #    (persis seperti apksig: nilai EOCD SEBELUM blok disisipkan).
     #    EOCD yang ditulis ke disk nanti memakai offset CD yang sudah digeser.
+    #
+    #    PENTING (ini yang membuat APK besar gagal dipasang):
+    #    apksig memecah SEMUA bagian menjadi potongan 1 MB lalu menggabungkannya
+    #    jadi SATU daftar, baru di-hash:
+    #        digest = sha256(0x5a || u32(jumlah potongan) || semua digest potongan)
+    #        digest potongan = sha256(0xa5 || u32(len) || isi potongan)
+    #    Versi lama menghitung per bagian utuh lalu membungkus tiap bagian dengan
+    #    0x5a sendiri -> salah untuk semua APK > 1 MB (Android menolak tanda tangan).
     eocd = bytearray(apk_bytes[eocd_off:])
     eocd[16:20] = struct.pack("<I", block_start)
     sections = [apk_bytes[0:block_start], apk_bytes[cd_off:eocd_off], bytes(eocd)]
-    digests = [hashlib.sha256(b"\xa5" + struct.pack("<I", len(s)) + s).digest() for s in sections]
-    digest = hashlib.sha256(b"\x5a" + struct.pack("<I", len(digests)) + b"".join(digests)).digest()
+    chunk_digests = []
+    for s in sections:
+        if not s:
+            continue
+        for i in range(0, len(s), _CHUNK):
+            c = s[i:i + _CHUNK]
+            chunk_digests.append(hashlib.sha256(b"\xa5" + struct.pack("<I", len(c)) + c).digest())
+    digest = hashlib.sha256(b"\x5a" + struct.pack("<I", len(chunk_digests))
+                            + b"".join(chunk_digests)).digest()
 
     block = make_block(make_signed_data(digest))
     assert len(block) == len(probe), "panjang blok tidak stabil"
@@ -352,7 +370,8 @@ LIB = "nusa"
 LABEL = "Nusa Rush"
 
 
-def build(out, lib_path, assets_dir, version_name, version_code, min_sdk, target_sdk, key, cert):
+def build(out, lib_path, assets_dir, version_name, version_code, min_sdk, target_sdk, key, cert,
+          lib32_path=None):
     root = manifest_tree(APP_PKG, version_name, version_code, min_sdk, target_sdk, LIB,
                          ACTIVITY, LABEL)
     man = build_axml(root)
@@ -362,6 +381,10 @@ def build(out, lib_path, assets_dir, version_name, version_code, min_sdk, target
     # extractNativeLibs=false; sekaligus aman untuk semua versi lama).
     zw.add("lib/arm64-v8a/lib%s.so" % LIB, open(lib_path, "rb").read(), compress=False,
            align=16384)
+    # ABI 32-bit opsional (HP lama / Android 10 32-bit-only tidak bisa memasang APK arm64)
+    if lib32_path and os.path.exists(lib32_path):
+        zw.add("lib/armeabi-v7a/lib%s.so" % LIB, open(lib32_path, "rb").read(),
+               compress=False, align=16384)
     n_assets = 0
     for base, _, files in os.walk(assets_dir):
         for f in sorted(files):
@@ -408,7 +431,14 @@ def badging(path):
     a = verify(path)
     print("application-label:", LABEL)
     print("launchable-activity: name='%s'" % ACTIVITY)
-    print("native-code:", "arm64-v8a")
+    try:
+        import zipfile
+        names = zipfile.ZipFile(path).namelist()
+        abis = sorted({n.split("/")[1] for n in names if n.startswith("lib/")})
+        if abis:
+            print("native-code:", " ".join(abis))
+    except Exception:
+        print("native-code: arm64-v8a")
 
 
 if __name__ == "__main__":
@@ -418,6 +448,7 @@ if __name__ == "__main__":
         p = argparse.ArgumentParser()
         p.add_argument("--out", required=True)
         p.add_argument("--lib", required=True)
+        p.add_argument("--lib32", default=None)
         p.add_argument("--assets", required=True)
         p.add_argument("--version-name", default="1.0")
         p.add_argument("--version-code", type=int, default=1)
@@ -428,7 +459,8 @@ if __name__ == "__main__":
         p.add_argument("buildcmd", nargs="?")
         a = p.parse_args()
         build(a.out, a.lib, a.assets, a.version_name, a.version_code, a.min_sdk, a.target_sdk,
-              a.key if os.path.exists(a.key) else None, a.cert if os.path.exists(a.cert) else None)
+              a.key if os.path.exists(a.key) else None, a.cert if os.path.exists(a.cert) else None,
+              a.lib32)
     elif cmd == "verify":
         verify(sys.argv[2])
     elif cmd == "badging":

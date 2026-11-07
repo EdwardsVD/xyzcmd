@@ -12,6 +12,39 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
 
+CHUNK = 1024 * 1024      # apksig memecah tiap bagian jadi potongan 1 MB (Merkle)
+
+
+def content_digest(data):
+    """Digest isi sesuai skema v2: tiap potongan 1 MB di-hash, lalu digabung.
+
+    Sebelumnya saya menghitung sha256(0xa5||len||data) atas bagian utuh; itu
+    hanya benar untuk bagian < 1 MB. Inilah penyebab APK besar ditolak saat
+    dipasang (INSTALL_PARSE_FAILED_NO_CERTIFICATES), walau verifier saya lulus
+    pada APK contoh yang kecil.
+    """
+    if not data:
+        data = b""
+    n = max(1, (len(data) + CHUNK - 1) // CHUNK)
+    ds = []
+    for i in range(n):
+        c = data[i * CHUNK:(i + 1) * CHUNK]
+        ds.append(hashlib.sha256(b"\xa5" + struct.pack("<I", len(c)) + c).digest())
+    return hashlib.sha256(b"\x5a" + struct.pack("<I", len(ds)) + b"".join(ds)).digest()
+
+
+def apk_digest(sections):
+    """Digest v2 untuk gabungan ketiga bagian: satu daftar potongan 1 MB."""
+    chunks = []
+    for s in sections:
+        if not s:
+            continue
+        for i in range(0, len(s), CHUNK):
+            c = s[i:i + CHUNK]
+            chunks.append(hashlib.sha256(b"\xa5" + struct.pack("<I", len(c)) + c).digest())
+    return hashlib.sha256(b"\x5a" + struct.pack("<I", len(chunks)) + b"".join(chunks)).digest()
+
+
 def lp(b, o):
     n, = struct.unpack("<I", b[o:o + 4])
     return b[o + 4:o + 4 + n], o + 4 + n
@@ -65,8 +98,7 @@ def main(path):
     e[16:20] = struct.pack("<I", start)   # apksig: digest pakai offset = awal blok
     secs = [d[0:start], d[cd_real:eocd], bytes(e)]
     assert len(d[cd_real:eocd]) == cd_size, "panjang CD tidak cocok dengan EOCD"
-    digs = [hashlib.sha256(b"\xa5" + struct.pack("<I", len(s)) + s).digest() for s in secs]
-    calc = hashlib.sha256(b"\x5a" + struct.pack("<I", len(digs)) + b"".join(digs)).digest()
+    calc = apk_digest(secs)
     ok = calc == digest
     print("digest isi APK cocok:", ok, f"(sha256 {calc.hex()[:24]}...)")
 
