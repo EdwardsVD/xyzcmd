@@ -1,0 +1,16 @@
+# Aset besar & hasil unduhan Drive (tetap ada di disk sandbox, tidak di git)
+assets/
+google_drive/
+sysroot/
+output/*.apk
+output/*.zip
+output/apk/
+keystore/
+build/
+zig-cache/
+.zig-cache/
+*.npy
+__pycache__/
+.venv/
+third_party/
+*.pyc
