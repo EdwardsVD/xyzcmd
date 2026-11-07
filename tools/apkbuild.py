@@ -233,6 +233,7 @@ class ZipWriter:
     def __init__(self):
         self.buf = bytearray()
         self.entries = []
+        self.entry_data = {}   # name -> uncompressed data (untuk tanda tangan v1)
 
     def add(self, name, data, compress=True, align=4):
         name_b = name.encode("utf-8")
@@ -261,7 +262,14 @@ class ZipWriter:
         self.entries.append(dict(name=name_b, method=method, crc=crc, csize=len(payload),
                                  usize=len(data), off=off, flags=0x0800,
                                  time=0x0021, date=0x0000, extra=extra))
+        self.entry_data[name] = data   # simpan uncompressed untuk digest v1
         return len(payload)
+
+    def v1_signature_files(self, key_path, cert_path):
+        """Beri tanda v1 (JAR) pada semua entri non-META-INF, kembalikan berkas META-INF."""
+        non_meta = [(n, d) for n, d in self.entry_data.items()
+                    if not n.startswith("META-INF/")]
+        return sign_v1(non_meta, key_path, cert_path)
 
     def finish(self):
         cd_off = len(self.buf)
@@ -274,6 +282,182 @@ class ZipWriter:
         self.buf += struct.pack("<IHHHHIIH", 0x06054B50, 0, 0, len(self.entries), len(self.entries),
                                 cd_size, cd_off, 0)
         return bytes(self.buf)
+
+
+# ------------------------------------- ASN.1 DER helpers (untuk tanda tangan v1 / JAR)
+
+def _der_len(n):
+    if n < 0x80:
+        return bytes([n])
+    out = bytearray()
+    while n > 0:
+        out.insert(0, n & 0xFF)
+        n >>= 8
+    return bytes([0x80 | len(out)]) + bytes(out)
+
+def _der_int(n):
+    if n == 0:
+        return b"\x02\x01\x00"
+    b = n.to_bytes((n.bit_length() + 7) // 8, "big")
+    if b[0] & 0x80:
+        b = b"\x00" + b
+    return b"\x02" + _der_len(len(b)) + b
+
+def _der_octet(data):
+    return b"\x04" + _der_len(len(data)) + data
+
+def _der_oid_subid(n):
+    """Encode satu sub-identifier OID dalam base-128."""
+    if n == 0:
+        return bytes([0])
+    out = bytearray()
+    while n > 0:
+        out.insert(0, n & 0x7F)
+        n >>= 7
+    # set high bit pada semua byte kecuali yang terakhir
+    for i in range(len(out) - 1):
+        out[i] |= 0x80
+    return bytes(out)
+
+def _der_oid(dotted):
+    parts = [int(x) for x in dotted.split(".")]
+    first = parts[0] * 40 + parts[1]
+    result = bytes([first]) + b"".join(_der_oid_subid(p) for p in parts[2:])
+    return b"\x06" + _der_len(len(result)) + result
+
+def _der_seq(content):
+    return b"\x30" + _der_len(len(content)) + content
+
+def _der_set(content):
+    return b"\x31" + _der_len(len(content)) + content
+
+def _der_context(tag, content):
+    return bytes([0xA0 | tag]) + _der_len(len(content)) + content
+
+def _der_utf8(s):
+    b = s.encode("utf-8")
+    return b"\x0c" + _der_len(len(b)) + b
+
+def _der_printable(s):
+    b = s.encode("ascii")
+    return b"\x13" + _der_len(len(b)) + b
+
+def _encode_name(name):
+    """x509.Name -> DER (Sequence of Set of AttributeTypeAndValue).
+
+    Setiap NameAttribute dianggap satu RDN (set dengan satu atribut) —
+    bentuk standar untuk sertifikat APK debug.
+    """
+    rdns = []
+    for attr in name:  # tiap item adalah NameAttribute
+        oid = _der_oid(attr.oid.dotted_string)
+        val = attr.value
+        if isinstance(val, str):
+            if attr.oid.dotted_string == "2.5.4.6":  # countryName
+                v = _der_printable(val)
+            else:
+                v = _der_utf8(val)
+        else:
+            v = _der_octet(bytes(val))
+        rdns.append(_der_set(_der_seq(oid + v)))
+    return _der_seq(b"".join(rdns))
+
+
+def sign_v1(zip_entries, key_path, cert_path):
+    """Tanda tangan APK skema v1 (JAR).
+
+    zip_entries: list of (name, uncompressed_data) — HANYA entri non-META-INF,
+                 karena MANIFEST.MF/CERT.SF/CERT.RSA tidak mencantumkan dirinya sendiri.
+    Returns list of (name, data) untuk META-INF files yang akan ditambahkan ke zip.
+    """
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding, utils
+    from cryptography import x509
+    import base64
+
+    key = serialization.load_pem_private_key(open(key_path, "rb").read(), password=None)
+    cert = x509.load_der_x509_certificate(open(cert_path, "rb").read())
+    cert_der = cert.public_bytes(serialization.Encoding.DER)
+
+    # --- MANIFEST.MF: daftar semua entri + digest SHA-256 (uncompressed)
+    mf = bytearray()
+    mf += b"Manifest-Version: 1.0\n"
+    mf += b"Created-By: 1.0 (Android)\n"
+    mf += b"\n"
+    entry_digests = {}
+    for name, data in zip_entries:
+        d = hashlib.sha256(data).digest()
+        entry_digests[name] = d
+        mf += f"Name: {name}\n".encode("utf-8")
+        mf += f"SHA-256: {base64.b64encode(d).decode('ascii')}\n".encode("ascii")
+        mf += b"\n"
+    manifest_bytes = bytes(mf)
+    manifest_digest_b64 = base64.b64encode(hashlib.sha256(manifest_bytes).digest()).decode("ascii")
+
+    # --- CERT.SF: digest manifest + daftar entri
+    sf = bytearray()
+    sf += b"Signature-Version: 1.0\n"
+    sf += b"Created-By: 1.0 (Android)\n"
+    sf += f"SHA-256-Digest-Manifest: {manifest_digest_b64}\n".encode("ascii")
+    sf += b"\n"
+    for name, data in zip_entries:
+        d = entry_digests[name]
+        sf += f"Name: {name}\n".encode("utf-8")
+        sf += f"SHA-256: {base64.b64encode(d).decode('ascii')}\n".encode("ascii")
+        sf += b"\n"
+    sf_bytes = bytes(sf)
+
+    # --- Tanda tangan CERT.SF -> PKCS#7 SignedData (CERT.RSA)
+    sf_digest = hashlib.sha256(sf_bytes).digest()
+    signature = key.sign(sf_digest, padding.PKCS1v15(), utils.Prehashed(hashes.SHA256()))
+
+    # signedAttrs: SET of { messageDigest, <sf_digest> }
+    msg_digest_attr = _der_seq(
+        _der_oid("1.2.840.113549.1.9.4") + _der_set(_der_octet(sf_digest))
+    )
+    signed_attrs = _der_set(msg_digest_attr)
+    sig_over_attrs = key.sign(hashlib.sha256(signed_attrs).digest(),
+                              padding.PKCS1v15(), utils.Prehashed(hashes.SHA256()))
+
+    # IssuerAndSerialNumber dari sertifikat
+    issuer_der = _encode_name(cert.issuer)
+    iasn = _der_seq(issuer_der + _der_int(cert.serial_number))
+
+    # SignerInfo
+    signer_info = _der_seq(
+        _der_int(1) +                      # version (dengan signedAttrs)
+        iasn +
+        _der_seq(_der_oid("2.16.840.1.101.3.4.2.1") + b"\x05\x00") +  # digestAlgorithm SHA-256
+        _der_context(0, signed_attrs) +   # signedAttrs [0] EXPLICIT
+        _der_seq(_der_oid("1.2.840.113549.1.1.11") + b"\x05\x00") +   # signatureAlgorithm sha256WithRSA
+        _der_octet(sig_over_attrs)        # signature
+    )
+
+    # EncapsulatedContentInfo: eContentType=data, eContent=CERT.SF
+    encap = _der_seq(
+        _der_oid("1.2.840.113549.1.7.1") + _der_context(0, _der_octet(sf_bytes))
+    )
+
+    # SignedData: version 1 (sertifikat ada), digestAlgorithms, encapContentInfo,
+    # certificates, signerInfos
+    signed_data = _der_seq(
+        _der_int(1) +
+        _der_set(_der_seq(_der_oid("2.16.840.1.101.3.4.2.1") + b"\x05\x00")) +
+        encap +
+        _der_context(0, _der_set(cert_der)) +
+        _der_set(signer_info)
+    )
+
+    # ContentInfo: contentType=signedData, content=SignedData
+    cert_rsa = _der_seq(
+        _der_oid("1.2.840.113549.1.7.2") + _der_context(0, signed_data)
+    )
+
+    return [
+        ("META-INF/MANIFEST.MF", manifest_bytes),
+        ("META-INF/CERT.SF", sf_bytes),
+        ("META-INF/CERT.RSA", cert_rsa),
+    ]
 
 
 # ------------------------------------------------------- APK Signature Scheme v2
@@ -410,6 +594,11 @@ def build(out, lib_path, assets_dir, version_name, version_code, min_sdk, target
             zw.add("assets/" + rel, open(p, "rb").read(), compress=not store,
                    align=4096 if store else 4)
             n_assets += 1
+    # Tanda tangan v1 (JAR): tambahkan META-INF/MANIFEST.MF, CERT.SF, CERT.RSA
+    # SEBELUM v2, agar v2 mencakup seluruh isi APK (termasuk META-INF).
+    if key and cert:
+        for vname, vdata in zw.v1_signature_files(key, cert):
+            zw.add(vname, vdata, compress=False, align=4)
     raw = zw.finish()
     if key and cert:
         raw = insert_v2(raw, key, cert)

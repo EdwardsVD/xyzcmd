@@ -25,7 +25,7 @@ Spesifikasi APK akhir:
 | minSdk / targetSdk | `24` / `34` |
 | Activity | `android.app.NativeActivity` (exported) |
 | Native lib | `libnusa.so` (arm64-v8a ELF64 + armeabi-v7a ELF32) |
-| Tanda tangan | APK Signature Scheme v2 **valid** (RSA 2048), v3 tidak dipakai |
+| Tanda tangan | APK Signature Scheme v1 (JAR) + v2 **valid** (RSA 2048), v3 tidak dipakai |
 | Ukuran | ~22,78 MB, 67 aset, tidak dikompresi & selaras 16 KB |
 | Tekstur GLB | ≥1024 px, q92, 4:4:4, mipmap terbatas 1/4 resolusi, anisotropic 8× |
 | Trotoar | desa & kota (GLB terpisah per jenis jalan) |
@@ -118,26 +118,75 @@ Verifikasi:
 
 ## 4. Rencana kerja selanjutnya (konkrit, bertahap)
 
-Prioritas diturunkan dari dampak nyata dan risiko rendah:
+Prioritas diturunkan dari dampak nyata dan risiko rendah (lihat juga `tahap.md`):
 
-1. **Tanda tangan v1 (JAR)** — saat ini hanya v2. Beberapa perangkat lama memerlukan
-   v1; JDK resmi tidak punya `jarsigner`, jadi harus buat sendiri di Python.
-2. **Uji di HP nyata** — memasang APK dan mencatat error persis jika gagal, untuk
-   memastikan tidak ada masalah instalasi tersembunyi.
-3. **Perbaikan tepat waktu** — menangani laporan crash saat pause/resume dan
+1. **Uji di HP nyata** — memasang APK (`Nusa rush V0.0.1_3.apk`) dan mencatat error
+   persis jika gagal, untuk memastikan tidak ada masalah instalasi tersembunyi.
+2. **Fitur lobby** — layar sebelum balap untuk melihat model mobil 3D, putar-putar,
+   dan lihat spesifikasi singkat (lihat bagian 6).
+3. **Pengaturan shader** — opsi grafis **Realistik** dan **Anime** (cel-shaded,
+   outline tebal) yang bisa disesuaikan di menu pengaturan (lihat bagian 7).
+4. **Perbaikan tepat waktu** — menangani laporan crash saat pause/resume dan
    `surfaceDirty` (area yang masih layak dipantau di `platform.cpp`).
-4. **Konten gameplay** — nitro, drift skor, PR stunt, koleksi (berdasarkan rencana
-   Tahap A–B di versi sebelumnya), prioritas sesuai dampak.
+5. **Konten gameplay** — nitro, drift skor, PR stunt, koleksi (berdasarkan rencana
+   Tahap A–B), prioritas sesuai dampak.
 
 ---
 
 ## 5. Pertanyaan terbuka (menunggu keputusan)
 
-1. Mulai dari tahap pekerjaan mana di bagian 4? (saran: tanda tangan v1 dulu)
+1. Mulai dari tahap pekerjaan mana di bagian 4? (saran: uji di HP nyata dulu)
 2. Mau tetap tanpa musuh AI (eksplorasi + time trial), atau langsung tambah lawan?
 3. Polisi/heat level perlu atau tidak? Ini paling menambah beban kerja.
 4. Kontrol: tetap tombol analog, atau tambah TouchDrive (setir otomatis)?
 5. Bahasa UI: Indonesia, Inggris, atau keduanya?
+
+---
+
+## 6. Fitur Lobby (lihat mobil)
+
+Layar yang ditampilkan sebelum memulai balap. Pemain bisa melihat model mobil
+3D dari berbagai sudut dan memilih mobil yang akan digunakan.
+
+- **Scene lobby**: background sederhana + kamera yang bisa diorbit (geser layar
+  untuk memutar model mobil).
+- **Model mobil**: muat GLB mobil ke layar lobby dengan instancing.
+- **Kontrol sentuh**: gesar kiri/kanan untuk memutar model; tombol pilih mobil
+  (kiri/kanan) untuk berganti model.
+- **Tombol Mulai Balap**: melanjutkan ke layar permainan utama.
+- **Daftar mobil**: tampilkan nama + spesifikasi singkat (kecepatan maksimum,
+  percepatan, handling) untuk setiap mobil.
+
+---
+
+## 7. Pengaturan Shader (grafik Anime & Realistik)
+
+Menu pengaturan grafis yang memungkinkan pemain menyesuaikan tampilan visual
+menurut preferensi dan kemampuan HP.
+
+- **Opsi Realistik**: pencahayaan standar, bayangan, refleksi, tekstur penuh
+  (≥1024 px). Cocok untuk HP kelas menengah-ke atas.
+- **Opsi Anime**: cel-shaded (warna rata dengan batas warna tajam), outline
+  tebal di tepi objek, cahaya sederhana tanpa halusan berlebihan. Lebih ringan
+  untuk HP kelas bawah.
+- **Implementasi**: shader dipilih melalui menu pengaturan; pilihan disimpan ke
+  file JSON di penyimpanan internal; diterapkan saat game dimulai dan saat
+  kembali dari menu pengaturan.
+- **Sederhana**: hanya dua opsi (Realistik / Anime) tanpa pengaturan halus
+  berlebihan, agar mudah dipahami pemain.
+
+---
+
+## 8. Sumber & file di Drive
+
+_Sumber: verifikasi `tools/verify_apk.py`, `androguard` 4.1.4, `cryptography` 50.0.2,
+`ziglang` cross-compile, ASan/UBSan gameplay host test. File penting & source
+sudah diunggah ke Google Drive folder `game SESI-3` (file baru saja, file lama
+dibuang) dan disalin di workspace `output/`._
+
+- `Nusa rush V0.0.1_3.apk` (id `1fXloheDLCqzLoxcv8kubjCw4OhHDXgPK`)
+- `nusa-rush-source-v0.0.1_3.zip` (id `1gPeWzhah1og-9iz2BVNPcs1RlmutP8ox`)
+
 
 ---
 
