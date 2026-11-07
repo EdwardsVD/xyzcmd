@@ -41,6 +41,7 @@ void (*pglClearColor)(float, float, float, float); void (*pglViewport)(int, int,
 void (*pglDepthFunc)(GLenumT); void (*pglDepthMask)(GLbooleanT); void (*pglCullFace)(GLenumT);
 void (*pglFrontFace)(GLenumT); void (*pglBlendFunc)(GLenumT, GLenumT); void (*pglScissor)(int, int, int, int);
 void (*pglGetIntegerv)(GLenumT, int*); const char* (*pglGetString)(GLenumT);
+void (*pglTexParameterf)(GLenumT, GLenumT, float); void (*pglGetFloatv)(GLenumT, float*);
 void (*pglPixelStorei)(GLenumT, int); void (*pglPolygonOffset)(float, float);
 void (*pglGenBuffers)(int, GLuintT*); void (*pglBindBuffer)(GLenumT, GLuintT);
 void (*pglBufferData)(GLenumT, GLsizeiptrT, const void*, GLenumT);
@@ -114,7 +115,8 @@ bool glLoadAll() {
         "glUniform1i", "glUniform1f", "glUniform2f", "glUniform3f", "glUniform4f",
         "glUniformMatrix4fv", "glGenTextures", "glBindTexture", "glTexImage2D",
         "glTexParameteri", "glDeleteTextures", "glGenerateMipmap", "glActiveTexture",
-        "glDrawElements", "glDrawArrays", "glDrawElementsInstanced", "glDrawArraysInstanced"};
+        "glDrawElements", "glDrawArrays", "glDrawElementsInstanced", "glDrawArraysInstanced",
+        "glTexParameterf", "glGetFloatv"};
     static void** dst[] = {
         (void**)&pglEnable, (void**)&pglDisable, (void**)&pglClear, (void**)&pglClearColor,
         (void**)&pglViewport, (void**)&pglDepthFunc, (void**)&pglDepthMask, (void**)&pglCullFace,
@@ -135,7 +137,7 @@ bool glLoadAll() {
         (void**)&pglBindTexture, (void**)&pglTexImage2D, (void**)&pglTexParameteri,
         (void**)&pglDeleteTextures, (void**)&pglGenerateMipmap, (void**)&pglActiveTexture,
         (void**)&pglDrawElements, (void**)&pglDrawArrays, (void**)&pglDrawElementsInstanced,
-        (void**)&pglDrawArraysInstanced};
+        (void**)&pglDrawArraysInstanced, (void**)&pglTexParameterf, (void**)&pglGetFloatv};
     int n = (int)(sizeof(names) / sizeof(names[0]));
     for (int i = 0; i < n; i++) {
         void* p = dlsym(gl, names[i]);

@@ -121,6 +121,10 @@ void (*pglTexParameteri)(GLenumT, GLenumT, int) = ntexp;
 void (*pglDeleteTextures)(int, const GLuintT*) = ndeltex;
 void (*pglGenerateMipmap)(GLenumT) = n1e;
 void (*pglActiveTexture)(GLenumT) = n1e;
+static void ngf(GLenumT p, float* v) { (void)p; if (v) *v = 1.0f; }
+void (*pglGetFloatv)(GLenumT, float*) = ngf;
+static void ngtpf(GLenumT a, GLenumT b, float c) { (void)a; (void)b; (void)c; }
+void (*pglTexParameterf)(GLenumT, GLenumT, float) = ngtpf;
 void (*pglDrawElements)(GLenumT, int, GLenumT, const void*) = ndrawe;
 void (*pglDrawArrays)(GLenumT, int, int) = ndrawa;
 void (*pglDrawElementsInstanced)(GLenumT, int, GLenumT, const void*, int) = ndrawei;

@@ -124,6 +124,10 @@ void fDelTex(int,const GLuintT*){}
 void (*pglDeleteTextures)(int, const GLuintT*) = fDelTex;
 void fp_pglGenerateMipmap(GLenumT) {}
 void (*pglGenerateMipmap)(GLenumT) = fp_pglGenerateMipmap;
+void fp_pglGetFloatv(GLenumT p, float* v) { (void)p; if (v) *v = 1.0f; }
+void (*pglGetFloatv)(GLenumT, float*) = fp_pglGetFloatv;
+void fp_pglTexParameterf(GLenumT a, GLenumT b, float c) { (void)a; (void)b; (void)c; }
+void (*pglTexParameterf)(GLenumT, GLenumT, float) = fp_pglTexParameterf;
 void fp_pglActiveTexture(GLenumT) {}
 void (*pglActiveTexture)(GLenumT) = fp_pglActiveTexture;
 void fDrawE(GLenumT,int,GLenumT,const void*){}

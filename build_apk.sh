@@ -25,8 +25,9 @@ echo "== [2/5] aset runtime (pack_assets.py)"
 if [ ! -f app/assets/generated/island.bin ] || [ "${REPACK:-0}" = "1" ]; then
   # rantai aset lengkap: pulau -> jalan -> objek -> perbaikan tata letak -> paket runtime
   [ -f assets/generated/island.bin ] || $PY tools/extract_island.py assets/pulau/pulau_P2.glb assets/generated | tail -2
-  $PY tools/build_roads.py | tail -4
-  $PY tools/build_world.py | tail -3
+  $PY tools/build_world.py | tail -3          # meratakan terrain (pad bangunan, hotel, taman)
+  $PY tools/build_roads.py | tail -4          # SESUDAH pad: jalan mengikuti terrain final
+  $PY tools/build_world.py | tail -3          # sebar ulang objek di terrain yang sudah final
   $PY tools/fix_scene.py | tail -6
   $PY tools/pack_assets.py | tail -3
 fi

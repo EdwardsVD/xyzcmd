@@ -65,6 +65,9 @@ extern EGLintT(*peglBindAPI)(uint32_t);
 #define GL_VENDOR 0x1F00
 #define GL_RENDERER 0x1F01
 #define GL_EXTENSIONS 0x1F03
+#define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
+#define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE
+#define GL_TEXTURE_MAX_LEVEL              0x813D
 #define GL_MAX_TEXTURE_SIZE 0x0D33
 
 #define GL_DEPTH_TEST 0x0B71
@@ -179,6 +182,8 @@ extern void (*pglBindTexture)(GLenumT, GLuintT);
 extern void (*pglTexImage2D)(GLenumT, int, int, int, int, int, GLenumT, GLenumT, const void*);
 extern void (*pglTexParameteri)(GLenumT, GLenumT, int);
 extern void (*pglDeleteTextures)(int, const GLuintT*);
+extern void (*pglTexParameterf)(GLenumT, GLenumT, float);   // dipakai anisotropic
+extern void (*pglGetFloatv)(GLenumT, float*);
 extern void (*pglGenerateMipmap)(GLenumT);
 extern void (*pglActiveTexture)(GLenumT);
 

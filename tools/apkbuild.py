@@ -34,6 +34,7 @@ RES_IDS = {
     "resizeableActivity": 0x010104f7, "exported": 0x01010010,
     "allowBackup": 0x01010280, "value": 0x01010024, "required": 0x0101028e,
     "hasCode": 0x0101000c, "usesCleartextTraffic": 0x010104ec,
+    "extractNativeLibs": 0x010104ea,
 }
 
 TYPE_REF, TYPE_STRING, TYPE_INT_DEC, TYPE_INT_HEX, TYPE_BOOL = 0x01, 0x03, 0x10, 0x11, 0x12
@@ -189,6 +190,8 @@ def manifest_tree(pkg, version_name, version_code, min_sdk, target_sdk, lib_name
         (A, "debuggable", _b(True)),
         (A, "hardwareAccelerated", _b(True)),
         (A, "allowBackup", _b(False)),
+        # Android 15/16: lib dibaca langsung dari APK (butuh .so tersimpan + selaras 16 KB)
+        (A, "extractNativeLibs", _b(False)),
     ], [native])
     return el("manifest", [
         ("", "package", _s(pkg)),
@@ -355,7 +358,10 @@ def build(out, lib_path, assets_dir, version_name, version_code, min_sdk, target
     man = build_axml(root)
     zw = ZipWriter()
     zw.add("AndroidManifest.xml", man, compress=True)
-    zw.add("lib/arm64-v8a/lib%s.so" % LIB, open(lib_path, "rb").read(), compress=True)
+    # .so TIDAK dikompresi & data-nya selaras 16384 (syarat Android 15+ untuk
+    # extractNativeLibs=false; sekaligus aman untuk semua versi lama).
+    zw.add("lib/arm64-v8a/lib%s.so" % LIB, open(lib_path, "rb").read(), compress=False,
+           align=16384)
     n_assets = 0
     for base, _, files in os.walk(assets_dir):
         for f in sorted(files):

@@ -79,9 +79,29 @@ static u32 uploadTexture(const u8* enc, int len, int texMax) {
     pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // mip hanya sampai 1/4 res: mip terkecil membuat permukaan miring (jalan/jembatan)
+    // terlihat buram, sementara pop aliasing praktis tidak terlihat di layar HP.
+    {
+        int lv = 0;
+        while ((w >> (lv + 2)) > 0 && (h >> (lv + 2)) > 0 && lv < 8) lv++;
+        pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, lv);
+    }
     pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
     pglGenerateMipmap(GL_TEXTURE_2D);
+    // anisotropic filtering: tekstur aspal & beton dilihat sangat miring saat menyetir
+    if (pglTexParameterf) {
+        static float aniso = -1.f;
+        if (aniso < 0.f) {
+            aniso = 1.f;
+            if (pglGetFloatv) {
+                float mx = 1.f;
+                pglGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mx);
+                if (mx >= 2.f) aniso = mx > 8.f ? 8.f : mx;
+            }
+        }
+        if (aniso > 1.f) pglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, aniso);
+    }
     stbi_image_free(pix);
     return tex;
 }

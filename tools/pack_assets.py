@@ -21,7 +21,7 @@ import struct
 import sys
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -74,8 +74,13 @@ def png_embed(js, bin_, img_index, maxpx=1024, quality=92):
     im = Image.open(io.BytesIO(data)).convert("RGB")
     if max(im.size) > maxpx:
         im.thumbnail((maxpx, maxpx), Image.LANCZOS)
+    # Unsharp mask ringan: tekstur hasil render/sketsa sumber sering kehilangan
+    # kontras tepi setelah penskalaan, ini yang terbaca "burem" di layar HP.
+    im = im.filter(ImageFilter.UnsharpMask(radius=1.2, percent=55, threshold=2))
+    # 4:4:4 (tanpa subsampling kroma) supaya tepi berwarna tetap tajam;
+    # dengan quality 92 ukurannya masih wajar.
     b = io.BytesIO()
-    im.save(b, "JPEG", quality=quality, optimize=True)
+    im.save(b, "JPEG", quality=quality, optimize=True, subsampling=0)
     return b.getvalue()
 
 

@@ -25,6 +25,17 @@ from build_roads import Terrain, GEN, PREV  # noqa: E402
 SEED = 20261106
 rng = np.random.default_rng(SEED)
 
+
+def reseed(tag):
+    """Seed per tahap: script ini dijalankan dua kali (sebelum & sesudah jalan
+    dibuat) dan hasilnya harus identik. Tanpa ini, pemakaian rng bersama membuat
+    pohon/gedung bergeser setiap kali urutan tahap berubah."""
+    global rng
+    off = 0
+    for ch in tag:                      # hash stabil (hash() berubah antar proses)
+        off = (off * 131 + ord(ch)) % 100000
+    rng = np.random.default_rng(SEED + off)
+
 # tipe objek: 0 oak,1 spruce,2 sakura,3 palm, 4..15 rumah desa A1..D3, 16..27 gedung kota A1..D3
 TYPE_TREE_OAK, TYPE_TREE_SPRUCE, TYPE_TREE_SAKURA, TYPE_TREE_PALM = 0, 1, 2, 3
 TYPE_DESA0, TYPE_KOTA0 = 4, 16
@@ -63,8 +74,9 @@ class World:
         self.roads = json.load(open(os.path.join(GEN, "roads.json")))
         self.dx = (x1 - x0) / (N - 1)
         self.dz = (z1 - z0) / (N - 1)
-        # grid jarak ke jalan (untuk larangan pohon di jalan)
+        # peta jarak ke jalan (untuk larangan pohon di jalan) + penanda kasar
         self.road_grid = np.zeros((N, N), np.uint8)
+        self.road_d = np.full((N, N), 999.0, np.float32)
         self.raster_roads()
         self.slope = self.compute_slope(self.H0)
 
@@ -90,8 +102,13 @@ class World:
                         else:
                             t = max(0.0, min(1.0, ((px - x0) * vx + (pz - z0) * vz) / L2))
                         ddx = px - (x0 + t * vx); ddz = pz - (z0 + t * vz)
-                        if ddx * ddx + ddz * ddz <= w * w:
+                        d2 = ddx * ddx + ddz * ddz
+                        if d2 <= w * w:
                             self.road_grid[jj, ii] = 1
+                        # jarak presisi ke tepi jalan (badan + trotoar)
+                        edge = math.sqrt(d2) - w
+                        if edge < self.road_d[jj, ii]:
+                            self.road_d[jj, ii] = edge
 
     def compute_slope(self, H):
         gy, gx = np.gradient(H, self.dz, self.dx)
@@ -111,7 +128,7 @@ class World:
         j = int(np.clip((z - self.z0) / self.dz, 0, self.N - 1))
         return j, i
 
-    def valid_spot(self, x, z, max_slope=25.0, min_h=1.2):
+    def valid_spot(self, x, z, max_slope=22.0, min_h=1.2, edge_clear=3.0):
         j, i = self.cell(x, z)
         if self.bio[j, i] in (0, 6):
             return False
@@ -119,7 +136,8 @@ class World:
             return False
         if self.slope[j, i] > max_slope:
             return False
-        if self.road_grid[j, i]:
+        # uji jarak presisi: grid 37,5 m terlalu kasar untuk tepi jalan
+        if self.road_d[j, i] < edge_clear:
             return False
         return True
 
@@ -141,6 +159,7 @@ class World:
 
     # -------------------------------------------------------------- penempatan
     def place_trees(self):
+        reseed("trees")
         out = []
         N = self.N
         dxs = (self.x1 - self.x0) / N
@@ -194,6 +213,7 @@ class World:
         return pts
 
     def place_buildings(self):
+        reseed("buildings")
         buildings = []
         occupied = []
 
@@ -216,7 +236,7 @@ class World:
             side = 1.0 if rng.random() < 0.5 else -1.0
             off = w * 0.5 + 9.0 + rng.uniform(0, 6)
             bx = x + (-tz) * off * side; bz = z + (tx) * off * side
-            if not self.valid_spot(bx, bz, max_slope=12.0):
+            if not self.valid_spot(bx, bz, max_slope=12.0, edge_clear=4.5):
                 continue
             if not far_enough(bx, bz, 14.0):
                 continue
@@ -243,7 +263,7 @@ class World:
                     continue
                 off = w * 0.5 + 2.0 + 10.0 + rng.uniform(0, 8)
                 bx = x + (-tz) * off * side; bz = z + (tx) * off * side
-                if not self.valid_spot(bx, bz, max_slope=10.0):
+                if not self.valid_spot(bx, bz, max_slope=10.0, edge_clear=4.5):
                     continue
                 if not far_enough(bx, bz, 26.0):
                     continue
