@@ -13,20 +13,20 @@ di Android 10) sudah diperbaiki dan **terverifikasi byte-level** terhadap 5 APK 
 (hello-world, app-prod-debug, multiple_locale_appname_test, tvleanback, dll).
 
 Berkas akhir (workspace):
-- `output/Nusa rush V0.0.1_3.apk` — 22,78 MB, 70 entri, 2 ABI
+- `output/Nusa rush V0.0.2_3.apk` — 22,8 MB, 70 entri, 2 ABI
 - `output/nusa-rush-s3-debug.apk` — versi build yang sama (cadangan)
 
 Spesifikasi APK akhir:
 | Item | Nilai |
 |---|---|
 | Package | `com.arenalab.nusarush` |
-| versionName | `0.0.1_3` |
-| versionCode | `3` |
+| versionName | `0.0.2_3` |
+| versionCode | `4` |
 | minSdk / targetSdk | `24` / `34` |
 | Activity | `android.app.NativeActivity` (exported) |
 | Native lib | `libnusa.so` (arm64-v8a ELF64 + armeabi-v7a ELF32) |
 | Tanda tangan | APK Signature Scheme v1 (JAR) + v2 **valid** (RSA 2048), v3 tidak dipakai |
-| Ukuran | ~22,78 MB, 67 aset, tidak dikompresi & selaras 16 KB |
+| Ukuran | ~22,8 MB, 67 aset, tidak dikompresi & selaras 16 KB |
 | Tekstur GLB | ≥1024 px, q92, 4:4:4, mipmap terbatas 1/4 resolusi, anisotropic 8× |
 | Trotoar | desa & kota (GLB terpisah per jenis jalan) |
 | Hutan | banyak pohon (instancing + LOD) |
@@ -34,7 +34,7 @@ Spesifikasi APK akhir:
 Hasil verifikasi terakhir (`tools/verify_apk.py` + `androguard`):
 - zip sehat, central directory di akhir, semua CRC entri lolos
 - AXML sinkron: 44 string, 23 resource-map ID, 10 elemen, END_ELEMENT `size=24`
-- package, versionName (`0.0.1_3`), versionCode (`3`), minSdk 24, targetSdk 34
+- package, versionName (`0.0.2_3`), versionCode (`4`), minSdk 24, targetSdk 34
 - `android.app.lib_name = nusa`, activity exported
 - ELF arm64-v8a + armeabi-v7a valid, `ANativeActivity_onCreate` terekspor
 - Aset wajib ada: `AndroidManifest.xml`, `assets/generated/island.bin`,
@@ -53,7 +53,7 @@ Bug fatal install (B1–B3):
 - **B1** Digest tanda tangan v2 dihitung per bagian utuh (salah untuk APK > 1 MB)
   → diperbaiki ke skema asli apksig (potongan 1 MB digabung dalam satu daftar digest).
 - **B2** Hanya ABI arm64-v8a → HP 32-bit menolak. Sekarang ada **armeabi-v7a** juga.
-- **B3** `versionCode` tidak naik → update ditolak. Sekarang `versionCode 3`.
+- **B3** `versionCode` tidak naik → update ditolak. Sekarang `versionCode 4`.
 
 Bug aset/render (B4–B9): terrain menutupi jalan, jalan tenggelam, objek menempel jalan,
 tekstur GLB buram, draw call jalan meledak, salah ABI pada badging, versionCode.
@@ -93,7 +93,7 @@ cd /home/user/xyzcmd
 ./build_apk.sh
 ```
 Output: `output/nusa-rush-s3-debug.apk`. Salinan akhir:
-`output/Nusa rush V0.0.1_3.apk`.
+`output/Nusa rush V0.0.2_3.apk`.
 
 Verifikasi:
 ```
@@ -111,7 +111,7 @@ Verifikasi:
 - **Trotoar:** khusus jalan **desa dan kota** (GLB terpisah per jenis jalan, 2 draw call
   per jenis). Di hutan ada banyak pohon (instancing + LOD).
 - **Aset runtime:** `island.bin`, `props.bin`, `roads.json` dipaket ke `app/assets`.
-- **Versi:** `versionName 0.0.1_3`, `versionCode 3` (harus ≥ versi terpasang agar update
+- **Versi:** `versionName 0.0.2_3`, `versionCode 4` (harus ≥ versi terpasang agar update
   diterima; cabut aplikasi lama sebelum pasang baru).
 
 ---
@@ -120,7 +120,7 @@ Verifikasi:
 
 Prioritas diturunkan dari dampak nyata dan risiko rendah (lihat juga `tahap.md`):
 
-1. **Uji di HP nyata** — memasang APK (`Nusa rush V0.0.1_3.apk`) dan mencatat error
+1. **Uji di HP nyata** — memasang APK (`Nusa rush V0.0.2_3.apk`) dan mencatat error
    persis jika gagal, untuk memastikan tidak ada masalah instalasi tersembunyi.
 2. **Fitur lobby** — layar sebelum balap untuk melihat model mobil 3D, putar-putar,
    dan lihat spesifikasi singkat (lihat bagian 6).
@@ -184,8 +184,8 @@ _Sumber: verifikasi `tools/verify_apk.py`, `androguard` 4.1.4, `cryptography` 50
 sudah diunggah ke Google Drive folder `game SESI-3` (file baru saja, file lama
 dibuang) dan disalin di workspace `output/`._
 
-- `Nusa rush V0.0.1_3.apk` (id `1fXloheDLCqzLoxcv8kubjCw4OhHDXgPK`)
-- `nusa-rush-source-v0.0.1_3.zip` (id `1gPeWzhah1og-9iz2BVNPcs1RlmutP8ox`)
+- `Nusa rush V0.0.2_3.apk` (id `1ZOMGrru-cSed8XX2JSlcWF5Wq7DCUPWS`)
+- `nusa-rush-source-v0.0.2_3.zip` (id `1LDx7C_NVZTIxZHrPrlRTgvOzB3m0_iy9`)
 
 
 ---

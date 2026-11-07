@@ -12,23 +12,23 @@ ke tahap berikutnya. Tandai `[x]` saat selesai.
 - [x] Penyebab: APK hanya ditandatangani skema v2. Beberapa perangkat
   membutuhkan tanda tangan v1 (JAR). Ditambahkan v1 (MANIFEST.MF, CERT.SF,
   CERT.RSA) bersama v2 di `tools/apkbuild.py`.
-- [x] Build ulang APK: `output/Nusa rush V0.0.1_3.apk` (22,8 MB, v1+v2 signed,
-  arm64-v8a + armeabi-v7a, versionName 0.0.1_3, versionCode 3).
+- [x] Build ulang APK: `output/Nusa rush V0.0.2_3.apk` (22,8 MB, v1+v2 signed,
+  arm64-v8a + armeabi-v7a, versionName 0.0.2_3, versionCode 4).
 - [x] Verifikasi: `tools/verify_apk.py` semua lulus, androguard
-  `signed v1: True`, `signed v2: True`.
+  `signed v1: True`, `signed v2: True`. minSdk 24 → kompatibel Android 8+.
 - [x] Upload ke Drive folder `game SESI-3` (ganti file lama):
-  - `Nusa rush V0.0.1_3.apk` (id `1fXloheDLCqzLoxcv8kubjCw4OhHDXgPK`)
-  - `nusa-rush-source-v0.0.1_3.zip` (id `1gPeWzhah1og-9iz2BVNPcs1RlmutP8ox`)
+  - `Nusa rush V0.0.2_3.apk` (id `1ZOMGrru-cSed8XX2JSlcWF5Wq7DCUPWS`)
+  - `nusa-rush-source-v0.0.2_3.zip` (id `1LDx7C_NVZTIxZHrPrlRTgvOzB3m0_iy9`)
 - [x] Salinan disimpan di workspace `output/`.
 
 ---
 
-## Tahap 1 — Dokumentasi: tahap.md + update.md (SEDANG BERJALAN)
+## Tahap 1 — Dokumentasi: tahap.md + update.md (SELESAI)
 
 - [x] `tahap.md`: daftar langkah demi langkah (berkas ini).
-- [ ] `update.md`: tambahkan fitur **lobby** (lihat mobil) dan **pengaturan
+- [x] `update.md`: tambahkan fitur **lobby** (lihat mobil) dan **pengaturan
   shader** (grafik anime & realistik, sederhana).
-- [ ] Commit & push ke branch `arena/84395d94-xyzcmd`.
+- [x] Commit & push ke branch `arena/84395d94-xyzcmd` (v0.0.2_3).
 
 ---
 

@@ -11,8 +11,8 @@ set -e
 cd "$(dirname "$0")"
 ROOT=$(pwd)
 SESI=${SESI:-3}
-VNAME=${VNAME:-0.0.1_3}      # versionName di dalam manifest
-VCODE=${VCODE:-3}            # versionCode (harus >= yang terpasang agar bisa update)
+VNAME=${VNAME:-0.0.2_3}      # versionName di dalam manifest
+VCODE=${VCODE:-4}            # versionCode (harus >= yang terpasang agar bisa update)
 ZIG=${ZIG:-$ROOT/.venv/lib/python3.11/site-packages/ziglang/zig}
 PY=${PY:-$ROOT/.venv/bin/python}
 OUT=output
