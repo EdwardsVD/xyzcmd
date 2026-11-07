@@ -1,6 +1,7 @@
 // world.cpp - pemuatan pulau, jalan, objek; terrain chunk dibangun bertahap.
 #include "world.h"
 #include <stdlib.h>
+#include "config.h"
 
 // ---------------------------------------------------------------- Island
 bool Island::load(const u8* data, size_t len) {
@@ -325,9 +326,15 @@ int World::buildTerrainNear(f32 x, f32 z, int maxBuild, int radiusChunk) {
 }
 
 void World::drawTerrain(const Frustum& fr, const v3& cam) {
+    // potong terrain di luar jarak kabut: tanpa ini seluruh pulau (10x10 chunk)
+    // tetap digambar dan menutupi jalan/objek karena menulis depth lebih dulu.
+    const f32 cut2 = (Cfg::kabutAkhir + 240.f) * (Cfg::kabutAkhir + 240.f);
     for (int i = 0; i < terrainChunks.size; i++) {
         TerrainMesh& tm = terrainChunks[i];
         if (!tm.built) continue;
+        f32 ox = isl.x0 + (tm.ci + 0.5f) * tcSize - cam.x;
+        f32 oz = isl.z0 + (tm.cj + 0.5f) * tcSize - cam.z;
+        if (ox * ox + oz * oz > cut2) continue;
         f32 cx = isl.x0 + (tm.ci + 0.5f) * tcSize, cz = isl.z0 + (tm.cj + 0.5f) * tcSize;
         f32 h = isl.height(cx, cz);
         f32 r = tcSize * 0.75f;
